@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lei app</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+
+        h1 {
+            font-size: 50px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 18px;
+        }
+
+        /* 禁用状态的外观:Connecting... / Pending in wallet... / Already Connected 时按钮变灰 */
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
+            padding: 25px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+            text-align: center;
+        }
+
+        #walletList {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 钱包按钮里放图标 + 名字,横向排列 */
+        #walletList button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        #connectButton {
+            visibility: hidden;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>this is lei Web3</h1>
+    <p>My first Web3 app</p>
+    <button id="connectButton" onclick="connect()">Connect Wallet</button>
+    <!-- 连接久没结果、或钱包里有待处理请求时,在这里显示提示 -->
+    <p id="hint" style="min-height: 24px; color: #b45309; max-width: 480px; margin: 8px auto;"></p>
+    <button id="stopWaiting" style="display: none; font-size: 14px; padding: 6px 12px;" onclick="stopWaiting()">Stop
+        waiting</button>
+    <!-- 【本次新增】钱包里有待处理请求时,用户明确确认"我要重新发一个"才会发 -->
+    <button id="sendNew" style="display: none; font-size: 14px; padding: 6px 12px;" onclick="sendNew()">Send new
+        request</button>
+    <br>
+    <!-- "记住钱包"开关:勾选后刷新页面会自动恢复连接状态,默认不勾选 -->
+    <label style="font-size: 14px;"><input type="checkbox" id="rememberWallet"> Remember this wallet</label>
+
+    <div id="walletWarning" class="modal">
+        <h2>Wallet Required</h2>
+        <p>Please install MetaMask to continue.</p>
+        <button id="closeWarning">Yes, I see</button>
+    </div>
+
+    <div id="walletSelector" class="modal">
+        <h2>Select Wallet</h2>
+        <div id="walletList"></div>
+        <button id="cancelSelect" style="margin-top: 15px;">Cancel</button>
+    </div>
+
+    <script>
+        const btn = document.getElementById("connectButton");
+        const walletSelector = document.getElementById("walletSelector");
+        const walletList = document.getElementById("walletList");
+        const hint = document.getElementById("hint");
+        const stopBtn = document.getElementById("stopWaiting");
+        const sendNewBtn = document.getElementById("sendNew");
+
+        /* ========== 状态 ========== */
+        // checking:刚打开页面 | noWallet:没装钱包 | disconnected:未连接 | connecting:页面正在等钱包回复
+        // pending:钱包里可能还留着一个没处理的请求(页面不再发新的) | connected:已连接
+        let state = "checking";
+
+        const VIEW = {
+            checking: { text: "", visible: false, disabled: true },
+            noWallet: { text: "", visible: false, disabled: true },
+            disconnected: { text: "Connect Wallet", visible: true, disabled: false },
+            connecting: { text: "Connecting...", visible: true, disabled: true },
+            pending: { text: "Pending in wallet...", visible: true, disabled: true }, // 【本次新增】
+            connected: { text: "Already Connected wallet", visible: true, disabled: true }
+        };
+
+        function render() {
+            const view = VIEW[state];
+            btn.textContent = view.text;
+            btn.style.visibility = view.visible ? "visible" : "hidden";
+            btn.disabled = view.disabled;
+        }
+
+        function setState(nextState) {
+            state = nextState;
+            render();
+        }
+
+        /* ========== 提示区 ========== */
+        // buttons: "stop" 显示 Stop waiting | "send" 显示 Send new request | "none" 都不显示
+        function showHint(message, buttons) {
+            hint.textContent = message;
+            stopBtn.style.display = buttons === "stop" ? "inline-block" : "none";
+            sendNewBtn.style.display = buttons === "send" ? "inline-block" : "none";
+        }
+
+        function clearHint() {
+            showHint("", "none");
+        }
+
+        /* ========== 请求跟踪 ========== */
+        // inflight:当前页面里发出、还没结束的请求。每次请求新建一个对象,靠"是不是同一个对象"区分新旧请求
+        let inflight = null;
+
+        // 跨刷新:发请求时在 sessionStorage 留标记,请求结束就清掉;
+        // 如果页面在等待中被刷新,标记会留下来,说明钱包里可能还挂着上一次的请求
+        const PENDING_KEY = "pendingConnect";
+        const PENDING_TTL = 5 * 60 * 1000; // 5 分钟内认为钱包里可能还挂着
+
+        function markPending(rdns) {
+            try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ rdns: rdns, t: Date.now() })); } catch (e) { }
+        }
+
+        function clearPendingMark() {
+            try { sessionStorage.removeItem(PENDING_KEY); } catch (e) { }
+        }
+
+        function readPendingMark() {
+            try {
+                const mark = JSON.parse(sessionStorage.getItem(PENDING_KEY));
+                if (mark && Date.now() - mark.t < PENDING_TTL) {
+                    return mark;
+                }
+                sessionStorage.removeItem(PENDING_KEY);
+            } catch (e) { }
+            return null;
+        }
+
+        /* ========== 钱包发现(EIP-6963) ========== */
+        const providers = new Map();
+
+        window.addEventListener("eip6963:announceProvider", function (event) {
+            const { info, provider } = event.detail;
+            if (!providers.has(info.uuid)) {
+                providers.set(info.uuid, { info: info, provider: provider });
+            }
+
+            // 如果某个钱包扩展比较慢,在 init 判定"没装钱包"之后才报到,这里补救:收起提示,恢复按钮
+            if (state === "noWallet") {
+                document.getElementById("walletWarning").style.display = "none";
+                setState("disconnected");
+            }
+        });
+
+        /* ========== 记住"上次用的钱包" ========== */
+        // 注意存的是 info.rdns(如 io.metamask),不是 info.uuid:uuid 每次页面加载都会变,rdns 是固定的
+        const STORAGE_KEY = "lastWalletRdns";
+        const REMEMBER_KEY = "rememberWallet";
+        const rememberBox = document.getElementById("rememberWallet");
+
+        // 【本次修改】默认关闭:只有用户主动勾选过(存的值是 "1")才算开启
+        function isRememberOn() {
+            try { return localStorage.getItem(REMEMBER_KEY) === "1"; } catch (e) { return false; }
+        }
+
+        function saveLastWallet(rdns) {
+            if (!isRememberOn()) {
+                return;
+            }
+            try { localStorage.setItem(STORAGE_KEY, rdns); } catch (e) { }
+        }
+
+        function clearLastWallet() {
+            try { localStorage.removeItem(STORAGE_KEY); } catch (e) { }
+        }
+
+        function loadLastWallet() {
+            if (!isRememberOn()) {
+                return null;
+            }
+            try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
+        }
+
+        rememberBox.checked = isRememberOn();
+
+        // 【本次新增】开关是关的,就把以前版本遗留的"上次钱包"记录清掉
+        if (!isRememberOn()) {
+            clearLastWallet();
+        }
+
+        // 用户切换开关时:保存开关状态;打开时如果当前已连接就立刻记住,关闭时清掉已存的钱包
+        rememberBox.onchange = function () {
+            try { localStorage.setItem(REMEMBER_KEY, rememberBox.checked ? "1" : "0"); } catch (e) { }
+            if (rememberBox.checked) {
+                if (selectedDetail && state === "connected") {
+                    saveLastWallet(selectedDetail.info.rdns);
+                }
+            } else {
+                clearLastWallet();
+            }
+        };
+
+        /* ========== 当前使用的钱包 ========== */
+        let selectedDetail = null;   // 当前已连接的钱包 {info, provider}
+        let listenedProvider = null; // accountsChanged 监听挂在哪个 provider 上,防止重复挂
+
+        function onAccountsChanged(accounts) {
+            if (state === "connecting") {
+                return; // 连接中由 sendConnect 自己收尾
+            }
+
+            if (accounts.length > 0) {
+                // 用户在钱包里批准了请求(包括刷新前遗留的那个):同步成已连接
+                clearPendingMark();
+                clearHint();
+                const detail = Array.from(providers.values()).find(d => d.provider === listenedProvider);
+                if (detail) {
+                    useWallet(detail);
+                }
+                setState("connected");
+            } else if (state !== "pending") {
+                setState("disconnected");
+            }
+        }
+
+        // 只负责"监听这个钱包的账户变化",不选中它也不记住它
+        function watchAccounts(provider) {
+            if (listenedProvider === provider) {
+                return;
+            }
+            if (listenedProvider && listenedProvider.removeListener) {
+                listenedProvider.removeListener("accountsChanged", onAccountsChanged);
+            }
+            provider.on("accountsChanged", onAccountsChanged);
+            listenedProvider = provider;
+        }
+
+        // 确认连接成功后调用:选中这个钱包,并按开关决定是否记住
+        function useWallet(detail) {
+            watchAccounts(detail.provider);
+            selectedDetail = detail;
+            saveLastWallet(detail.info.rdns);
+        }
+
+        /* ========== 钱包选择页 ========== */
+        function showWalletSelector() {
+            walletList.innerHTML = "";
+
+            for (const detail of providers.values()) {
+                const walletButton = document.createElement("button");
+
+                const icon = document.createElement("img");
+                icon.src = detail.info.icon;
+                icon.width = 24;
+                icon.height = 24;
+
+                const name = document.createElement("span");
+                name.textContent = detail.info.name;
+
+                walletButton.append(icon, name);
+
+                walletButton.onclick = function () {
+                    walletSelector.style.display = "none";
+                    connect(detail);
+                };
+
+                walletList.appendChild(walletButton);
+            }
+
+            walletSelector.style.display = "block";
+        }
+
+        document.getElementById("cancelSelect").onclick = function () {
+            walletSelector.style.display = "none";
+        };
+
+        /* ========== 初始化 ========== */
+        async function init() {
+            window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            if (providers.size === 0) {
+                setState("noWallet");
+                document.getElementById("walletWarning").style.display = "block";
+                return;
+            }
+
+            // 刷新后恢复连接状态(只有勾选了"记住钱包"才会走到这里):
+            // 找到上次用的钱包,用 eth_accounts 问它"这个网页是否已授权"(不会弹窗)
+            const lastRdns = loadLastWallet();
+            const last = Array.from(providers.values()).find(d => d.info.rdns === lastRdns);
+
+            if (last) {
+                try {
+                    const accounts = await last.provider.request({ method: "eth_accounts" });
+                    if (accounts.length > 0) {
+                        useWallet(last);
+                        setState("connected");
+                        return;
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            // 【本次修改】刷新前如果有没处理完的请求,直接进入 pending 状态,不让用户再点连接
+            const mark = readPendingMark();
+            if (mark) {
+                const waiting = Array.from(providers.values()).find(d => d.info.rdns === mark.rdns);
+                if (waiting) {
+                    watchAccounts(waiting.provider); // 用户之后在钱包里批准,页面能自动变成已连接
+                    enterPending("上一次的连接请求可能还在钱包里等待处理。请点击浏览器右上角的钱包图标处理它(批准后页面会自动同步)。如果钱包里已经没有了,点 Send new request 重新发起。");
+                    return;
+                }
+            }
+
+            setState("disconnected");
+        }
+
+        init();
+
+        /* ========== 连接 ========== */
+        // connect 可以接收一个指定的钱包(从选择页点进来时),不传则用已选的或让用户选
+        function connect(chosen) {
+            // 【本次修改】connecting 和 pending 都不允许再点:钱包那边已经有一个请求了
+            if (state === "connecting" || state === "pending") {
+                return;
+            }
+
+            // 【本次修改】"记住钱包"关闭时,不沿用本页面里上一次连接的钱包,每次都重新选
+            let detail = chosen || (isRememberOn() ? selectedDetail : null);
+
+            if (!detail) {
+                if (providers.size === 1) {
+                    // 只有一个钱包时没必要让用户选,直接用
+                    detail = providers.values().next().value;
+                } else {
+                    showWalletSelector();
+                    return;
+                }
+            }
+
+            sendConnect(detail);
+        }
+
+        // 真正向钱包发 eth_requestAccounts 的地方
+        async function sendConnect(detail) {
+            const mine = { provider: detail.provider }; // 这次请求的身份
+            inflight = mine;
+            markPending(detail.info.rdns);
+            clearHint();
+            setState("connecting");
+
+            // 6 秒还没结果,说明钱包窗口可能没弹出来,或者被直接叉掉了(叉掉不等于取消,请求还在钱包里)
+            const hintTimer = setTimeout(function () {
+                if (inflight === mine && state === "connecting") {
+                    showHint("没看到钱包窗口?请点击浏览器右上角的钱包图标。", "stop");
+                }
+            }, 6000);
+
+            let keepMark = false;
+
+            try {
+                const accounts = await detail.provider.request({ method: "eth_requestAccounts" });
+                if (accounts.length > 0) {
+                    useWallet(detail);
+                    clearHint();
+                    setState("connected"); // 就算已经进了 pending,钱包之后真批准了也要同步
+                } else if (inflight === mine) {
+                    clearHint();
+                    setState("disconnected");
+                }
+            } catch (error) {
+                // 所有错误都打印出来(包括用户拒绝的 4001),方便在 Console 里看钱包到底返回了什么
+                console.log("[connect] code:", error.code, "message:", error.message);
+                if (inflight === mine) { // 只有"当前这次请求"的失败才改界面
+                    if (error.code === -32002) {
+                        // 钱包明确告诉我们"已经有一个待处理的请求了"
+                        keepMark = true;
+                        watchAccounts(detail.provider);
+                        enterPending("钱包里已有一个待处理的连接请求。请点击浏览器右上角的钱包图标处理它(批准后页面会自动同步)。如果钱包里已经没有了,点 Send new request 重新发起。");
+                    } else {
+                        clearHint();
+                        setState("disconnected"); // 用户在钱包里点了拒绝(4001)等情况,回到可再次点击的状态
+                    }
+                }
+            } finally {
+                clearTimeout(hintTimer);
+                if (inflight === mine) {
+                    inflight = null;
+                    if (!keepMark) {
+                        clearPendingMark();
+                    }
+                }
+            }
+        }
+
+        /* ========== 【本次新增】待处理(pending)相关 ========== */
+        function enterPending(message) {
+            setState("pending");
+            showHint(message, "send");
+        }
+
+        // 用户点 Stop waiting:页面不再等,但钱包里的请求还在(网页没有办法取消它)
+        // 这时按钮变成禁用的 "Pending in wallet...",不再允许点 Connect Wallet
+        function stopWaiting() {
+            if (state !== "connecting") {
+                return;
+            }
+            enterPending("页面不再等待,但这个请求大概率还留在钱包里。请点击浏览器右上角的钱包图标处理它(批准后页面会自动同步)。如果钱包里已经没有了,点 Send new request 重新发起。");
+        }
+
+        // 用户明确确认"我要重新发一个":放弃对旧请求的跟踪,走正常的连接流程
+        function sendNew() {
+            inflight = null; // 旧请求以后再失败,不会再改界面
+            clearPendingMark();
+            clearHint();
+            setState("disconnected");
+            connect();
+        }
+
+        document.getElementById("closeWarning").onclick = function () {
+            document.getElementById("walletWarning").style.display = "none";
+        };
+    </script>
+</body>
+
+</html>

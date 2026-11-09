@@ -1,0 +1,625 @@
+<!DOCTYPE html> <!--使用HTML5标准,让浏览器按照HTML5的规则解析下面的内容-->
+<html lang="en"> <!--<html> </html>这个是MTML文档的根元素,基本所有网页内容都放在这里 lang="en"是一个属性,代表这个网页常用英语-->
+
+<head> <!--头部信息区域, 放置告诉浏览器怎么理解网页信息-->
+    <meta charset="UTF-8"> <!--告诉浏览器此网页使用 UTF-8 编码-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!--(Viewport Meta Tag)优化移动端显示-->
+    <title>雷 app</title> <!--网页标题 浏览器标签页的显示-->
+    <style>
+        /*<style>作用是存放CSS样式代码*/
+        body {
+            /*选择网页中的<body>元素 规定默认样式规则*/
+            text-align: center;
+            /*默认的文字和行内内容水平居中*/
+            font-family: Arial, sans-serif;
+            /*字体优先使用Arial,备选sans-serif*/
+        }
+
+        h1 {
+            /*选择所有<h1>标签元素*/
+            font-size: 50px;
+            /*将文字大小设置成50px*/
+        }
+
+        button {
+            /*选择所有<button>元素,设置按钮内边距和大小*/
+            padding: 12px 24px;
+            /*用内边距设置按钮大小,上下12px,左右24px*/
+            font-size: 18px;
+            /*按钮中文字大小18px*/
+        }
+
+        button:disabled {
+            /*选择属于disabled状态的button元素*/
+            opacity: 0.6;
+            /*透明度降低,视觉上更灰更淡*/
+            cursor: not-allowed;
+            /*光标在此按钮上停留时变成禁止样式*/
+        }
+
+        .modal {
+            /*选择所有class类为modal的元素,执行下面规则,隐藏,固定,居中,白色背景,圆角,颜色,把这个变成一个弹窗形式*/
+            display: none;
+            /*一开始不显示*/
+            position: fixed;
+            /*固定在浏览器视口*/
+            top: 50%;
+            /*让元素顶部的位置位于视口高度的 50% 处*/
+            left: 50%;
+            /*让元素左边缘的位置位于视口宽度的 50% 处*/
+            transform: translate(-50%, -50%);
+            /*把这个弹窗自身向左移动自身宽度的 50%,向上移动自身高度的 50%  ,变得居中*/
+            width: 320px;
+            /*设置宽度为320px*/
+            padding: 25px;
+            /*设置内边距为25px,边框和里面内容的距离*/
+            background: white;
+            /*设置背景颜色*/
+            border-radius: 12px;
+            /*边角的圆滑曲线*/
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+            /*弹幕增加阴影,0水平平移,9px垂直平移,,30px阴影模糊程度,rgba(0.0.0.25)阴影颜色和透明度*/
+            text-align: center;
+            /*让弹窗内部文字水平居中*/
+        }
+
+        #walletList {
+            /*选择id 为walletList的元素,应用下方规则*/
+            display: flex;
+            /*变成Flex布局容器 它的直接子元素以后按照 Flex 规则排列*/
+            flex-direction: column;
+            /*子元素按照上下“列”的方向排列*/
+            gap: 10px;
+            /*子元素排序之间预留 10px 的间距*/
+        }
+
+        #walletList button {
+            /*只选择id为walletList的元素里的button元素,选择的是内部钱包,钱包选择也算button元素*/
+            display: flex;
+            /*让钱包内部也变成flex容器*/
+            align-items: center;
+            /*让内部内容以交叉轴方向居中*/
+            justify-content: center;
+            /*让内部内容主轴心放心居中*/
+            gap: 10px;
+            /*内容之间预留10px间隙*/
+        }
+
+        #connectButton {
+            /*选择id为connectButton的元素*/
+            visibility: hidden;
+            /*元素存在,暂时不可见,这与display: none;不同,这个是存在占着原本的空间不显示用户无法看见和交互,display: none是按钮不显示不参与布局相当于不存在*/
+        }
+    </style>
+</head>
+
+<body> <!--网页主体内容区域-->
+    <h1>this is lei Web3</h1><!-- h1 代表heading 表示是网页的一级标题-->
+    <p>My first Web3 app</p><!--p 代表paragraph 一个段落段落,一段网页上显示的文笔-->
+    <button id="connectButton" onclick="connect()">Connect Wallet</button>
+    <!--button代表生成一个可点击的按钮元素,id 表示这个按钮元素的唯一标识名,onclick表示将按钮连接到connect(), Connect Wallet是按钮显示的字符串-->
+    <p id="hint" style="min-height: 24px; color: #100f0f; max-width: 480px; margin: 8px auto;"></p>
+    <!--创造一个段落,id为"hint",style= 这个写法是直接把css代码写在html元素身上-->
+    <!--最小高度为24px 设置颜色 最大宽度为480px 上下页面间隔8px 元素水平左右居中-->
+    <!--这个段落功能为连接提示, 现在还没有值,根据后面的连接状态再去变化-->
+    <button id="stopWaiting" style="display: none; font-size: 14px; padding: 6px 12px;" onclick="stopWaiting()">Stop waiting</button>
+    <!--也是一个button元素  style="display: none 让这个button刚被打开时按钮不存在于视觉布局也不占用布局空间,字体大小14px,内边距上下6px,左右12px-->
+    <!--onclick="stopWaiting()"让点击这个按钮,调用JavaScript里的stopWaiting()函数 按钮显示文字为Stopwaiting 作用是取消钱包连接引导等待的提示-->
+    <!--这个button作用是作为取消钱包连接请求的引导 ,停止等待钱包连接的button-->
+
+    <button id="sendNew" style="display: none; font-size: 14px; padding: 6px 12px;" onclick="sendNew()">Send new request</button>
+    <!--button元素, 开始不可见 文字大小14px 内边距上下6px 左右12px-->
+    <!--点击触发javascript里的sendNew()函数 作用是取消钱包待连接处理提示-->
+    <!--这个button元素作用是作为点击之后取消处理的连接请求提示,继续选择新钱包的button-->
+    <br><!--换行元素,在当前排版位置插入一个换行符-->
+    <label style="font-size: 14px;"><input type="checkbox" id="rememberWallet"> Remember this wallet</label>
+    <!--<label> 创建一个label元素(功能是给某个表单控件提供说明文字，并把这段说明文字和控件建立起关联) "font-size: 14px;"是访问此元素里的font对象,在访问font对象里的size属性 14px 字体大小14px -->
+    <!--input 是一个HTML元素 代表创建一个id为"rememberWallet"的输入控件 type="checkbox"代表把这个input指定为复选框类型 之后复选框后面文笔内容为"Remember this wallet"-->
+    <!--用label去指定Remember this wallet文字与id为"rememberWallet"这个的复选框input元素关联起来-->
+
+    <div id="walletWarning" class="modal"> <!--用div这个HTML容器元素创造一个弹窗,为钱包安装提示 div的id为"walletWarning",div里面的元素class类为"modal"-->
+        <h2>Wallet Required</h2> <!--二级标题,弹窗的标题-->
+        <p>Please install MetaMask to continue.</p><!--弹窗段落-->
+        <button id="closeWarning">Yes, I see</button><!--弹窗关闭按钮,button id为"closeWarning",按钮显示yes i see字符串 -->
+    </div>
+
+    <div id="walletSelector" class="modal"><!--一样的用div容器创建一个弹窗,弹窗id为wallet selector, class类为modal-->
+        <h2>Select Wallet</h2><!--二级标题,弹窗标题为select wallet-->
+        <div id="walletList"></div><!--创建一个通用容器 用来存放获取到的钱包button元素-->
+        <button id="cancelSelect" style="margin-top: 15px;">Cancel</button><!--创建一个button元素,文字大小15px 作用取消钱包选择连接-->
+    </div>
+
+    <script>
+        //保存html经常会使用的元素对象到变量
+        const btn = document.getElementById("connectButton");//连接钱包的butto对象
+        const walletSelector = document.getElementById("walletSelector");//钱包选择器这个弹窗对象
+        const walletList = document.getElementById("walletList");//获取到的钱包对应的button元素容器对象
+        const hint = document.getElementById("hint");//连接钱包时的操作提示
+        const stopBtn = document.getElementById("stopWaiting");//取消钱包连接引导等待的提示状态
+        const sendNewBtn = document.getElementById("sendNew");//放弃网页对钱包发起的请求跟踪,清楚pending标记,重启发起连接的button对象
+
+
+        let state = "checking";//创建一个可以被重新赋值的变量,变量名叫state,把"checking"赋值给他,这里"checking"是自定义的状态,代表初始化
+
+        const VIEW = { //当前网页状态机的状态规则  
+            //这里每一个{}就表示一个javascript对象
+            checking: { text: "", visible: false, disabled: true },//VIEW是一个变量名,保存的是一个javascript对象,它里面有checking这个属性值,而checking这个属性值又有text,visible,disabled 三个属性,可以通过VIEW.checking.text来访问text这个属性
+            //当程序属于checking(初始化)状态时, 对应配置ui 内容空 按钮不可见 按钮处于禁用状态
+            noWallet: { text: "", visible: false, disabled: true },
+            //当程序属于nowallet(没有嗅探到钱包)状态时, 对应配置ui 内容空 按钮不可见 按钮处于禁用状态
+            disconnected: { text: "Connect Wallet", visible: true, disabled: false },
+            //当程序属于disconnected(有钱包,还没有连接)状态时, 对应配置ui 按钮文字显示"Connect Wallet" 按钮存在 按钮不处于禁用状态
+            connecting: { text: "Connecting...", visible: true, disabled: true },
+            //当程序属于connecting(正在执行连接操作,等待返回结果)状态时, 对应配置ui 按钮文字显示"connecting..." 按钮存在 按钮处于禁用状态
+            pending: { text: "Pending in wallet...", visible: true, disabled: true },
+            //当程序属于pending(有待处理连接请求)状态时, 对应配置ui 按钮文字显示"Pending in wallet..." 按钮存在 按钮处于禁用状态
+            connected: { text: "Already Connected wallet", visible: true, disabled: true }
+            //当程序属于connectted(已连接,获得账户访问权限)状态时, 对应配置ui 按钮文字显示"Already Connected wallet" 按钮存在 按钮处于禁用状态
+        };
+
+        function render() { //状态机规则执行
+            // 读取当前style的状态所对应的ui界面配置 然后把这个配置实际应用到connect button上
+            const view = VIEW[state]; // 获取VIEW对象中和现state状态所对应的属性值名,把这个属性值名对应的属性获取然后保存到view里
+            btn.textContent = view.text; //  访问view里面保存的text属性,把这个属性已经确定的值赋值给but.textContent,把but里保存的button对象里的textContent属性值改为view.text里text的属性值,从而改变按钮显示文本
+            //textContent是DOM节点提供的文本内容属性, 在button对象中决定textContent属性button文本显示
+            btn.style.visibility = view.visible ? "visible" : "hidden"; // 访问当前状态配置里的visible值 ,然后进行三元运算,如果view.visible的值是true就得到""visible" ,否则得到"hidden" 把得到的值赋给btn对象里的visibility属性,来决定按钮隐藏还是可见
+            //style是mthl元素的css样式对象,访问了之后可以访问其里面的css属性,通过访问style.visibility来访问visibility属性, 从而来用css的方法来设置这个button对象的按钮隐藏(hidden)显示(visible)
+            btn.disabled = view.disabled; // 访问当前状态配置里的disabled属性, 把获取到的值赋值给btn代表着的这个button对象里的disabled属性,来决定按钮功能是否禁用,从而决定用户能不能正常点击这个button
+            //disabled是button对象的DOM属性,用来决定button是否处于禁用状态 true禁用 false正常
+        }
+
+        function setState(nextState) { //修改程序当前的状态，然后立刻根据最新状态更新页面。
+            //nexState是每个逻辑执行之后获取状态给状态变量state的参数
+            state = nextState; //把当前state改成nexState
+            render();//根据当前状态执行状态机,根据状态机执行根据状态机规则更新界面ui配置
+        }
+
+        function showHint(message, buttons) { //显示一段提示文字,根据传进来的buttons状态决定button元素的显示 message状态决定提示段落的显示
+            hint.textContent = message; //把message的值放进hint id保存的段落元素对象里的textContent里,来决定这个段落元素需要显示的文字
+            stopBtn.style.display = buttons === "stop" ? "inline-block" : "none";
+            //stopBtn保存的是 取消连接等待 的button对象,访问这个对象里的style属性里的display(元素参与页面布局的方式)属性
+            //之后判断buttons的值是否严格等于"stop" 之后在运行三元运算, 如果严格等于结果为true,执行条件为真的值"inline-block", 如果不严格等于结果为false,执行条件为假的值"none"
+            //通过判断对应状态之后修改 display 的值为inline-block 还是 none 来决定在当前状态下button是作为行内级块级元素显示还是不显示的同时也不占用布局空间
+            sendNewBtn.style.display = buttons === "send" ? "inline-block" : "none";
+            //也一样,sendNewBtn保存的是 取消钱包待连接提示 的button对象, 访问这个对象中的style中的display属性,之后进行严格等于,三元运算,来决定这个button以什么方式显示
+        }
+
+        function clearHint() { //让后续逻辑调用时清空提示文字,隐藏提示和检查按钮
+            showHint("", "none"); // 向showHint传入两个值 "" 和 "none" 来起到清空提示文字, 隐藏禁用nutton的效果
+        }
+
+        let inflight = null; //让当前页面不在把旧请求视为当前正在跟踪请求的变量
+
+        const PENDING_KEY = "pendingConnect"; // 创建一个叫做"PENDING_KEY"的变量,里面储存一个名为"pending connect"的键名,这个键名用来储存待处理连接对象的rdns
+        const PENDING_TTL = 5 * 60 * 1000; // 待连接处理记录的最大保存时间 300000毫秒 5分钟
+
+        function markPending(rdns) { //把当前钱包信息和记录信息保存到浏览器的session Storage中 , 作为有还待处理连接请求的标记,用来判断是否有未连接的请求
+            try { //javascript的异常处理结构 执行try里面的代码,没有报错正常继续执行, 执行有错误进入catch,报错e 后续{}没有写就是什么也不做
+                localStorage.setItem(PENDING_KEY, JSON.stringify({ rdns: rdns, t: Date.now() })); //传建等待钱包的标记
+                //sessionStorage.setItem() 是在调用sessionStorage(浏览器提供的存储对象)里的setItem()方法,写法是setItem(储存数据的键名,需要保存到这个键名的值) 这里("pendingConnect", JSON.stringify({ rdns: rdns, t: Date.now() }) ),会在session Storage下创造一个叫pending Connect的储存键,浏览器会把JSON.stringify({ rdns: rdns, t: Date.now() })的数据保存到"pendingConnect"储存键中
+                //JSON.stringify({ rdns: rdns, t: Date.now() }))  
+                //{ rdns: rdns, t: Date.now() } 是一个javascript对象,里面有两个属性名,rdns属性名(代表当前钱包标识) rdns: rdns把函数参数的rdns(传入的钱包标识)作为属性值传给rdns, t是也是属性名,表示记录的时间戳,Date.now()是javascript的方法,作用是返回当前程序执行到这一表达式时当前时间的时间戳,单位是毫秒
+                //JSON.stringify 把setItem需要的保存键值转化为json字符串形式
+            }
+            catch (e) { }
+        }
+
+        function clearPendingMark() { //删除 session Storage 中 "pending Connect"这个储存键中保存的待处理连接标记
+            try {
+                localStorage.removeItem(PENDING_KEY);//调用session Storage对象中的remove Item()这个方法,根据指定的键名,删除浏览器中对应键名储存的带连接处理标记
+            }
+            catch (e) { }
+        }
+
+        function readPendingMark() { //读取session storage里面pending connect的待处理连接对象的属性,判断是否过期
+            try {
+                const mark = JSON.parse(localStorage.getItem(PENDING_KEY)); //sessionStorage.getItem(PENDING_KEY) 用这个getItem()方法来读取"pending connect"这个键名里储存的值 并配转化为字符串,赋值给mark
+                //值不存在的话.getItem会返回null(空假值) 不算异常,所以不会执行catch
+                //null	                            假	表示空值
+                //undefined	                        假	表示未定义
+                //{}	                            真	对象，即使是空对象也是真值
+                //{ rdns: "io.metamask", t: 123 }	真	对象是真值
+                //""	                            假	空字符串
+                //0	                                假	数字零
+                //false	                            假	布尔假值
+                //"hello"	                        真	非空字符
+                if (mark && Date.now() - mark.t < PENDING_TTL) { //对mark进行&&短路求值(与)运算,全一出一,有零出零,如果一个值为假,就为假,同时不执行右侧代码,if判断也为假,如果全为真,为真执行后面代码
+                    //用当前时间戳减去带连接记录创建的时间戳,判断待连接请求到当前时间是否小于5分钟,如有小于5分钟,if为真,执行return mark,把值返回给调用这个函数的代码,立即结束当前函数执行
+                    //如果大于5分钟,那么if为假,if判断为假,执行sessionStorage.removeItem(PENDING_KEY),之后返回return null
+                    return mark;
+                }
+                localStorage.removeItem(PENDING_KEY); // 清空pending connect键名里的值
+            } catch (e) { }
+            return null; // 函数返回null
+        }
+
+        const providers = new Map(); // 创造一个名叫providers的Map对象(映射) 可以通过key 找到对应的value 
+
+        window.addEventListener("eip6963:announceProvider", function (event) { // EIP - 6963  
+            //访问window里的add Event Listener()方法注册事件监听器 注册"eip6963:announceProvider"(EIP-6963定义的钱包公告事件) 同时注册 function(event)函数作为事件被触发时获取事件对象的回调函数, 每次钱包发送公告时都会触发事件,执行一遍回执函数,就能正确的把所有钱包信息保存到 providers建立对应映射
+            const { info, provider } = event.detail; // 访问已经储存了钱包公告对象event里的detail属性 在访问detail这个对象里的info(钱包的身份信息,包括名称,图标,UUID,rdns等),provider(钱包提供的JavaScript的交互接口,可以用来请求账户,发起签名等)属性,并且赋值给同名变量
+
+            //uuid和rdns都是钱包标识符,为什么要用rdns来做记录带连接处理标识,而uuid做判断钱包是否重复识别的判断标识呢? 因为uuid不稳定,刷新后可能改变,导致键值还是原来的uuid,新uuid和键值uuid对不上,会重复判断, 不适合做记录保存之后的跨页面持续刷新的钱包标据, 还有就是rdns不安全,他是钱包提供的表示信息,不能单独证明钱包真实性,可能被伪造
+            if (!providers.has(info.uuid)) { // 检查是否保存过这个钱包 
+                //providers.has(info.uuid) .has是map自带的方法,用于检查指定的key是否存在 获取info里的uuid(钱包唯一标识符)属性,之后用.has检查providers里面是否有这个key
+                //如果没有的话为false.!非操作之后变成true,进入if真语句
+                providers.set(info.uuid, { info: info, provider: provider }); // 使用Map的set方法接收两个参数,第一个为info.uuid,作为key,第二个为{info: info, provider: provider},作为value,将两者作为映射关系 key是info.uuid的值,value是一个普通的javascript对象 {info: info, provider: provider}
+            }
+            //为 真 ! 变成假 直接跳出去
+
+            if (state === "noWallet") { //再检查state是否严格相等"noWallet" ,这段代码在announceProvider里面,只有钱包已经确认拥有了,响应了才会执行,目的是为了解决钱包获取延迟误判没有钱包的情况
+                document.getElementById("walletWarning").style.display = "none"; //如果相等,状态现等于noWallet, 获取walletWarning弹窗对象,隐藏弹窗显示
+                setState("disconnected"); // 修改程序状态为disconnected 
+            }
+        });
+
+        const STORAGE_KEY = "lastWalletRdns"; // 定义一段文字 last wallet rdns 后续会存储网页记住的钱包rdns
+        const REMEMBER_KEY = "rememberWallet"; // 定义一段文字 remember Wallet 后续会存储1或0在作为记住钱包选项的开关逻辑判断
+        const rememberBox = document.getElementById("rememberWallet"); // 获得label元素(这里是连接按钮的提示警告模块复选框)的对象
+
+        function isRememberOn() { //检查用户是否开启了记住钱包选项
+            try {
+                return localStorage.getItem(REMEMBER_KEY) === "1";
+                // local Storage是浏览器提供的本地存储功能 也是负责储存键名映射,和session Storage的不同之处就在于local storage会长期保存,即使关闭网页,刷新,除非缓存被清,代码删除,而session storage会话级储存,刷新可以保留,但是一旦页面被关闭就会被释放
+                //访问localStorage里的getItem()方法,作用是获取键名对应保存的键值,判断是否严格等于1,严格等于返回true
+
+            } catch (e) { return false; } //读取失败返回false
+        }
+
+        function saveLastWallet(rdns) { // 保存最后执行请求的钱包rdns
+            if (!isRememberOn()) { // 选择记住钱包执行假代码 不选择记住钱包执行真代码
+                return; // 立即结束整个saveLastWallet函数
+            }
+            try {
+                localStorage.setItem(STORAGE_KEY, rdns); //访问.setItem 方法 把rdns作为键值储存到STORAGE_KEY代表的键名上
+
+            } catch (e) { }
+        }
+
+        function clearLastWallet() {
+            try {
+                localStorage.removeItem(STORAGE_KEY); // 调用.remove Item方法,删除local Storage里STORAGE_KEY键名里的值
+            } catch (e) { }
+        }
+
+        function loadLastWallet() { // 读取最后执行请求的钱包rdns
+            if (!isRememberOn()) { // 选择记住钱包执行假代码, 不选择记住钱包执行真代码
+                return null; // 函数返回null
+            }
+            try {
+                return localStorage.getItem(STORAGE_KEY); // 读取目前STORAGE_KEY里的值 返回给load Last wallet() 
+            } catch (e) { return null; }
+        }
+
+        rememberBox.checked = isRememberOn(); //初始化钱包记忆功能时通过isRememberOn的值来决定复选框状态 
+        //访问rememberBox这个input对象的checked(复选框当前状态)的属性,可读可改, 可以读取获得当前复选框的状态, 也可以通过给他赋值来改变他的状态从而改变复选框, 也可以直接改变复选框来改变他的状态
+
+        if (!isRememberOn()) { //如果没有打开记住钱包选项,就清除记住的钱包rdns
+            clearLastWallet();
+        }
+
+        rememberBox.onchange = function () { // 监听复选框状态的逻辑
+            //onchange 是HTML元素值发生变化时的事件处理函数,当复选框状态改变时,就执行回执函数
+            //注册一个onchange事件,当用户从浏览器光标点击勾选复选框, change事件被触发,复选框状态改变,onchange检测到状态发生改变,执行回执函数(onchange不会监听所有状态变化,只能监视change事件触发导致的复选框状态改变,用户在浏览器上直接点击就属于, 如果是别的方式改变复选框状态比如rememberBox.checked = true,就算真正改变了复选框状态,不是change事件触发的状态改变,也不会被监听到)
+            try {
+                localStorage.setItem(REMEMBER_KEY, rememberBox.checked ? "1" : "0");  //访问 local Storage里的.set Item方法,把对rememberBox.checked进行三元运算后的结果存储进remember_key这个键名当键值
+            } catch (e) { }
+
+            if (rememberBox.checked) { //再去判断rememberBox.checked的值,检查复选框是否真的已经勾选
+                if (selectedDetail && state === "connected") { //为真执行 
+                    //selectedDetail (一个自定义赋值过钱包对象用来表示当前选中钱包详细信息的变量) 和state做短路求值(与)运算,判断是否都是真值, 在用state判断是否严格等于"connected"  
+                    saveLastWallet(selectedDetail.info.rdns);//全部为真执行 把rdns的值传给saveLastWallet()函数当参数
+                }
+
+            } else {
+                clearLastWallet();// 如果复选框没有真正的勾选那么就调用clearLastWallet()删除STORAGE_KEY键名里的值,清空追踪状态
+            }
+
+        };
+
+        let selectedDetail = null; // 保存当前选中钱包的钱包对象,作为配合钱包记忆选择的钱包对象变量和最新连接过的钱包对象
+        let listenedProvider = null; // 初始化监听钱包的provider对象
+
+        function onAccountsChanged(accounts) { // 钱包状态同步器
+            if (state === "connecting") { //当前状态属于正在连接时,立刻结束 
+                return;
+            }
+
+            if (accounts.length > 0) { // 当accounts数组元素长度＞0的时候 表示当前网页可访问账户大于0时
+                clearPendingMark(); // 执行clearPendingMark() 删除pending connect键名里的带处理连接标记
+                clearHint(); //执行 clearHint() 来执行showHint("", "none")以清空提示元素的button和段落 
+                const detail = Array.from(providers.values()).find(d => d.provider === listenedProvider); //拿到对应的当前触发账户事件变化并且已连接的钱包对象
+                //用values(javascript里map自带的方法)把providers里保存的所有钱包对象的每个value的值取出来打包成一个Map Iterator(迭代器) 之后返回这个迭代器对象,给from, 再用Array对象里的from方法(JavaScript 内置的静态方法,作用是可以根据可迭代对象或类数组对象创建一个新数组) 把接受的迭代器对象转换成一个普通的javascript数组
+                //再用.find(javascript数组自带的方法)逐个查找数组元素,传参给你定义的回调函数,执行函数,直到其中的一个元素能让条件成立,函数返回true,.find接收到true,结束索引,返回这个元素,如果没有找到符合条件的元素，就返回undefined
+                // Array.from(providers.values()).find 在这个之中,就算Array.from的返回数组没有变量名保存, 也可以接着直接用返回值调用其他方法,这里.find直接调用的就是这个from返回的数组
+                //(d => d.provider === listenedProvider) 使用了箭头函数语法(左边是函数接受的传参参数,右边是需要执行的内容)
+                //d => d.provider === listenedProvider 等价于 function (d) { return d.provider === listenedProvider; }   (只有一个表达式会自动返回表达式结果)
+                //意思就是 从当前查找的元素d中访问元素d中的provider属性, 再把拿到的provider属性的值与listenedProvider所对应的值做严格相等比较,如果正确.返回true,find接受到true结束搜索并当前的元素返回赋值给detail 
+                if (detail) { // detail为真执行
+                    useWallet(detail); // 把deatil传入useWallet()函数中
+                }
+
+                setState("connected");//为假跳出执行, 修改当前状态为connected 
+
+            }
+            //else会先匹配最近的, 没有匹配过else的if块,这里这个else匹配的是 if (accounts.length > 0) 的if块
+            else if (state !== "pending") { // 如果accounts.length 长度不大于0 那么对state做严格不相等判断,判断state现状态是否严格不等于pending, 如果是为真
+                setState("disconnected"); // 修改状态为"disconnected"
+            }
+        }
+
+        function watchAccounts(provider) { // 账户监视器重复检测与注册刷新机制
+            if (listenedProvider === provider) {  //检查现阶段监听的provider的值是否和传进来的provider相等
+                return;// 如果相等直接退出
+            }
+
+            if (listenedProvider && listenedProvider.removeListener) { // 如果不相等就代表新provider和原来监听的不一样  对listenedprovider进行短路与求值,如果listenedproider是初始化的null值,会立即为假,不会执行右侧代码,(对null.removeListener会报错),如果listenedproider为真,再去执行右侧代码判断listenedProvider.removeListener的是否为真, 因为如果.removeLsitener的值不存在为undefined,就无法清空会报错
+                // listenedProvider.removeListener作用只是单纯的检查listenedProvider这个对象是否提供 removeListener 方法, listenedProvider在被赋值provider的时候就会有这个方法了
+                listenedProvider.removeListener("accountsChanged", onAccountsChanged);// 如果都为真, 就调用removeListener()这个provider对象提供的移除监视器方法,对listenedProvider变量所对应的Provider对象执行移除监听器的操作,去移除accountsChanged(当前网站访问账户变化)事件发生时执行onAccountsChanged函数的这个注册的监听操作
+            }
+            // 监听器是监听Provider上指定的事件, 指定的事件被触发时监听器就会指向注册的回调函数
+            // 这里需要在这里移除监听器是因为重新创建监听器并不会覆盖掉之前的监听器, 而且移除监听器必须通过注册他时那个所对应的provider来访问他之后来移除, 不移除的话旧的不需要在监听的钱包对象的provider的监听器就可能依旧还在监听,导致监听逻辑错误
+            // 这里的listenedProvider不是监听器本身, 只是为了作为创造监听器的当前钱包对应的provider引用, 来可以直接读写对应的provider来做出删除监听器的操作, providerA的监听器在providerA的事件系统里, providerB的监听器在 providerB的事件系统里,listenedProvider所做的只是找到需要修改的对应Provider做出对应操作
+            // 对当前的钱包对象的provider创建监听器和把这个provider赋值给listenedProvider是两个操作, 对当前的Provider创建监听器是把监听器创建到当前Provider的事件系统里, 把当前Provider的值赋给listenedProvider是为了让listenedProvider保持对当前Provider的引用
+            //这里的listenedProvider 代表的就是最新监听的钱包对象, 只保留当前需要监听的钱包对象Provider的监听器,删除不需要监听的钱包对象Provider的监听器,来达到正确监听
+
+            provider.on("accountsChanged", onAccountsChanged); // 用provider对象提供的on方法在provider对象的事件系统里注册一个事件监听器, 规则为当accountsChanged事件发生时,执行onAccountsChanged函数
+            //之后onAccountsChanged这个回执函数接收事件回执返回的可供当前网页访问的账户地址数组
+            listenedProvider = provider; //把当前注册监听器的provider的对象赋值给ListenedProvider     
+        }
+
+        function useWallet(detail) { // 启用接管钱包
+            watchAccounts(detail.provider); // 访问传进来的detail值里的provider属性,把这个属性传参数watchAccounts函数
+            selectedDetail = detail; // 把当前选中的钱包对象detail,赋值给selectedDetail 
+            saveLastWallet(detail.info.rdns); // 把detail里的当前rnds传入saveLastWallet 根据当前否开启钱包记忆来执行需不需要记住当前钱包rdns
+        }
+
+        function showWalletSelector() { // 组装钱包选择器
+
+            walletList.innerHTML = ""; //初始化 用innerHTML来访问walletList这个HTML对象的全部内容 ,之后清空
+
+            for (const detail of providers.values()) { // 利用循环依次取出钱包
+                //for (... of ...){}是javascript里的遍历语法,  定义const detail变量用来接收当前取出的元素,of providers.values()表示从providers.values()这个可迭代对象中依次取出值,之后每取出一个值,就执行一遍对应代码块{..}里的代码
+                const walletButton = document.createElement("button"); //利用.createElement方法创造一个button元素,把元素对象保存到walletButton变量中
+
+                //钱包对象的info属性里面的属性.uuid(唯一标识符) .name(钱包名称) .icon(钱包图标URL) .rdns(方向域标识符) 
+
+                const icon = document.createElement("img"); //创造一个img图片元素, 保存到icon  
+                icon.src = detail.info.icon; // 把当前获取到的钱包对象的icon(钱包的图标数据)数据赋值给icon这个img图片元素对象的src(图片来源地址)属性中
+                icon.width = 24; // 访问inco的width属性来设置这个图片对象的宽度
+                icon.height = 24; // 访问inco的height属性来设置这个图片对象的高度
+
+                const name = document.createElement("span"); // 创造一个 span 行内文本容器
+                name.textContent = detail.info.name; // 把当前钱包对象的名称数据赋值给span对象的.textContent属性,来决定显示文本内容
+
+                walletButton.append(icon, name); // 用append方法把先inco, 然后后name这些变量所代表的HTML对象给添加到walletButton这个button对象里去(inco和name现就是这个button对象的子节点了)
+                //append是(DOM元素提供的方法,作用的向一个元素的内部末尾添加一个或多个节点)
+
+                walletButton.onclick = function () { // 绑定当前对应的钱包button点击触发事件
+                    walletSelector.style.display = "none"; // 用户点击触发回执函数, 触发隐藏钱包选择器弹窗
+                    connect(detail); // 把这个当前点击的钱包button对应的钱包对象传参给connect函数 
+                    //walletButton.onclick = function 这个事件处理函数被创建在for循环内部,能访问外层定义的detail,函数内部也引用了detail,所以该函数需要保留对当前引用变量访问的能力,就会进行闭包
+                    //这个a钱包的detail就绑定到了walletButton.onclick这个事件处理函数上,然后该事件关联的又是a所对应的button按钮,所以点击a所对应的button,然后事件被触发 function()里的detail就会是传参绑定这个包的a钱包对这个对象detail
+                    //用户点击按钮, 触发事件函数, 通过闭包访问之前对应的detail, 把之前对应的detail传入connect(detail);执行
+                };
+
+                walletList.appendChild(walletButton); //把组装好的button放进钱包选择器弹窗里的通用容器上面作为选择钱包的选择
+                //appendChild功能同样是向一个元素的内部末尾添加一个或多个节点, 不过就是参数必须是节点,而且一次只能加一个
+            }
+
+            walletSelector.style.display = "block"; // 组装好button,放进弹窗之后,就把钱包选择器弹窗可以作为块级元素显示了
+        }
+
+        document.getElementById("cancelSelect").onclick = function () { //获取到钱包选择器取消连接按钮的button对象,绑定点击button事件
+            walletSelector.style.display = "none"; // 点击Cancel 隐藏钱包选择器弹窗,同时不参与页面布局
+        };
+
+        async function init() { // 钱包连接初始化自检和创立
+            window.dispatchEvent(new Event("eip6963:requestProvider"));
+            // new(创造新对象) Event(创造事件对象的构造函数) 创造一个名为eip6963:requestProvider的事件对象
+            // 用 .dispatchEvent 这个派发事件的方法 把这个新创造的事件派发到当前网页的window上, 然后钱包内部预先注册的对应事件监听器收到公告, 触发内部监听器的事件
+            // 钱包内部监听器收到该公告了被触发了之后,会向当前网页回应派发announceEvent(里面主要有包含info, provider的detail属性和给当前网页的钱包公告事件eip6963:announceProvider)
+            //然后再由自己注册的eip6963:announceProvider事件监听器去执行对应的自己写的需要的逻辑
+
+            await new Promise((RESOLVE, REJECT) => setTimeout(RESOLVE, 300)); // 等待300毫秒 作为获取钱包信息的缓冲时间
+            // 使用 new Promise()这个构造函数创建一个promise, 作用是作为异步的包装器,而Promise构造函数提供了两个特殊的函数,分别是第一个参数会接收到的:resolve(),第二个参数会接收到的:reject() ,在这里RESOLVE对应的就是resolve(),这两个函数是JavaScript引擎在创建Promise的时候给你提供的,你自己通过参数接收他们
+
+            // 这个promise展开
+            // await new Promise(function executor(resolve, reject) {
+            //    return setTimeout(resolve, 300);
+            //  });
+
+            // 执行Promise()的时候会执行他的执行函数, 这个创建的promise在内部没有调用resolve()这个函数时, 会一直处于pending状态, 只有内部resolve()被调用了,才会从pending变为fulfilled状态
+            // 所以就利用setTimeout()函数来注册一个定时器 300毫秒延迟后,才让他执行调用RESOLVE这个参数值,,当RESOLVE这个参数值在执行函数里被调用触发了之后就等于触发了对应的resolve(),resolve()被触发就会让这个promise从pending状态成为fulfilled状态
+            // 当promise的resolve()没有被触发的时候处于pending状态的promise就不会返回结果, await就会一直等待返回, 直到返回结果, 执行了resolve()返回为fulfilled为成功继续执行,执行了reject()返回为rejection,报出对应错误
+
+            // 获取到providers这个保存所有已检测到钱包对象的Map对象变量里有多少个元素(映射对象里,一个从key到value的映射关系就是一个元素)
+            if (providers.size === 0) { // 钱包状态判断, 等待300毫秒判断现已获取到的钱包数量,如果没有获取到一个钱包对象映射的信息 
+                //.size 是javascript内置的Map对象提供的一个访问器属性 作用是获取一个Map对象中有多少组key到value的映射关系数量
+                setState("noWallet"); // 就把状态值设置为noWallet
+                document.getElementById("walletWarning").style.display = "block"; // 把钱包安装提示弹窗设置为块级元素显示
+                return;
+            }
+
+            const lastRdns = loadLastWallet(); //尝试去loadLastWallet()里拿到上次记住的钱包rdns标识,没有则返回null 
+            const last = Array.from(providers.values()).find(d => d.info.rdns === lastRdns);//顺序查找把钱包映射对象转化Map迭代器,再把这个迭代器转化为数组后,在去顺序查找这个数组d元素中的info.rdns属性和lastRdns里的值是否严格相等,严格相等返回对应的d元素值,不严格相等则返回undefined
+
+            // 在这里,用户不点击remember this wallet 复选框的话, isRememberOn()永远为假, 永远不会保存STORAGE_KEY到键上,lastRdns就会为null ,last就会找不到与之对应的lastRdns的rdns从而返回undefined,undefined为假永远触发不了此if分支
+            // 这是为了区分钱包端和网页端的连接逻辑
+
+            if (last) { //静默查询,判断刷新或者网页关闭后的连接状态,同步以记住钱包的已连接 
+
+                selectedDetail = last; // BUG修复,之前断开了对应钱包连接,就算开启了钱包记忆,有对应记忆钱包的rdns,但是在网页刷新或者关闭之后,selectedDetail被释放状态丢失时同时,无法复原还有效的保存的记忆钱包rdns的钱包对象
+                // 在获取到对应记忆的有效rdns和rdns所能正确对应的当前钱包对象之后, 代表当前的last必定是需要记忆的钱包对象, 无论有没有已连接账户,连接账户恢复判断交给静默查询做,这里需要直接赋值给selectedDetail,作为已经记住的钱包对象
+
+                try {//如果找到了相等的rdns的话就执行
+                    const accounts = await last.provider.request({ method: "eth_accounts" }); //访问last里保存的钱包对象里的provider这个属性,在访问provider这个对象里的request(一个钱包交互接口方法)向钱包发送一个请求对象,这个对象属性名为method,属性值为eth_accounts
+                    //"eth_accounts"方法名的作用是让钱包静默查询当前钱包已经授权给这个网页访问的以太坊账户地址,钱包收到了之后会返回一份当前网页已授权的账户数组,把这个账户数组赋值给accounts
+                    //这里用的只有last这个钱包对象去查询,请求作用域只在last这个钱包对象对于的钱包中,所以只会这个钱包对象对于的钱包去响应,返回这个钱包对象对于的钱包的已授权的已连接账户信息
+                    if (accounts.length > 0) { // 再去查询还有没有当前可用授权的账户
+                        useWallet(last); // 有的话把当前last值传参给useWallet() 
+                        clearPendingMark(); //清空待连接标记, 以防止是刷新或者退出网页时的连接没有走sendConnect
+                        setState("connected"); // 把连接button状态更新为已连接
+                        return;
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            // 连接等待期间的网页断点自检逻辑   
+            const mark = readPendingMark(); // 调用readPendingMark()返回的值, 如果有待处理连接对象且小于5分钟,mark就会是个真值对象, 如果没有对象或者待处理连接超过了5分钟,就是unll值
+            if (mark) {// 如果是真值执行if
+                const waiting = Array.from(providers.values()).find(d => d.info.rdns === mark.rdns); //顺序查找钱包数组当前元素d的rdns和mark.rdns是否有严格相等的
+
+                if (waiting) { //如果找到了对应带连接处理的rdns钱包对象
+                    try {
+                        const accounts_ = await waiting.provider.request({ method: "eth_accounts" }); // 在查询一遍当前可用账户地址数组,来作为关闭网页之后5分钟内的连接静默查询判断
+
+                        if (accounts_.length > 0) { // 如果可用账户地址数组元素大于0, 就代表用户在退出网页时连接了此钱包, 把状态同步  
+                            useWallet(waiting); //保存为当前连接钱包,并注册监听器
+                            clearHint();
+                            clearPendingMark(); //连接成功之后就清空带连接处理标记
+                            setState("connected");
+                            return;
+                        }
+                        else { // 如果钱包账户没有连接,只是单纯的待处理的连接
+                            watchAccounts(waiting.provider); // 把waiting.provider的值传入 watchAccounts()函数 刷新后会掉监听器, 把这个刷新后判断到的还是正在发起连接请求的provider重新装监听器上去
+                            enterPending("有正待在处理的连接请求。请点击浏览器钱包扩展查看,如果钱包请求已处理或已被取消,请点击Send new request重新发起"); // 显示提示,调出提示模块的send new request
+                            return;
+                        }
+
+                    } catch (error) {
+                        console.error(error);
+                    }
+
+                }
+            }
+
+            setState("disconnected"); //没有操作默认disconnected状态
+        }
+
+        init(); // 执行一遍init()以完成钱包连接创立
+
+        function connect(chosen) { //钱包连接确定器
+            //点击钱包所对应的button之后,触发绑定的这个钱包的button事件开关,被传入回执函数闭包的那个detail对象
+
+            if (state === "connecting" || state === "pending") { //做或逻辑短路求值判断, 两边条件是否满足一个为真,有1出1,全0出0,如果当前状态是待请求连接状态或是已连接,则为真,直接结束返回
+                return;
+            }
+
+            let detail = chosen || (isRememberOn() ? selectedDetail : null); // 如果chosen是真值,则直接返回为true, 如果chosen是假值,就在检查(isRememberOn() ? selectedDetail : null) 如果isRememberOn()的值为trun, 就返回selectedDetail,如果isRememberOn()的值为false,就返回null,之后或判断,selectedDetail为真,null为假
+            // 不是从钱包选择器选择, 也没有记忆的钱包,就为假,相反两者满足一个就为真
+            if (!detail) { // 对detail的值取非 
+                if (providers.size === 1) { //获取providers映射的有多少个钱包对象映射关系,如果providers里面只有一个钱包对象的映射的话,就代表当前网页只获取到一个钱包对象,大概率只有一个钱包对象
+                    detail = providers.values().next().value; // 把providers转换成Map迭代器,在用.next()方法一次,去取出含Map迭代器第一个value值的done对象, 在访问这个对象得到里面的value值,赋给detail
+                    // 调用迭代器的.next方法, 依次的获取value值,返回一个包含value值的done对象,这里只需要获取迭代器第一个value值,所以只调用一次,然后再去访问这个done对象得到他的value值
+                    //.next 示列
+                    //const providers = new Map([["walletA", "MetaMask"],  ["walletB", "OKX wallet"]]);
+                    //const iterator = providers.values();
+                    //for(result = iterator.next();  ; result = iterator.next() ){ 
+                    //console.log(result);
+                    //if(result.done){
+                    // break;
+                    // }
+                    //}
+                    //输出  {value: "MetaMask", done: false } { value: "OKX wallet", done: false } { value: undefined, done: true } 这里done不是判断value的条件,而是判断迭代有没有完成的条件
+                } else { // 如果获取的钱包对象大于1个, 那就组装并且弹出钱包选择器,让用户自己选
+                    showWalletSelector();
+                    return;
+                }
+            }
+
+            sendConnect(detail); //确定了要连接的钱包对象,直接传入sendConnect() 让他向钱包发送连接请求
+        }
+
+        async function sendConnect(detail) { //执行连接
+            const mine = { provider_: detail.provider }; // 在mine里创造一个叫做provider_的属性,之后把detail里的provider的值赋值给这个属性(每次调用都会创建一个新的,独一无二的mine对象身份,就算里面的值,对象内容一样,指向同一个钱包,但是还是不一样)
+            //发起一个请求,sendConnect(detail_a),在detail_a这个对象传进来时,第一次调用会创建一个mine_a(保存a钱包对象的mine变量)
+            //之后main_a会把保存的a钱包对象赋值给inflight这个全局变量
+            //如果再发起一个新请求,sendConnect(detail_b),之后会第二次调用,创造一个mine_b,这时,mine_a和mine_b都是mine,但是两者不一样,因为函数会根据都有后续引用保留他们当时的作用域
+            //inflight被更新为inflight_b 
+            //这时的最新请求是b钱包,旧请求是a钱包
+            //只要一个根元素在引用链上还有所对应的需要执行的操作,那么这个根所对应的作用域就会被一直保留,直到这个根元素在引用链上的所有对应引用完成,这个根元素所对应的作用域才会被释放
+            //在这里,第一次调用的main_a 在await等待返回时, 返回之后就会停止等待,这里引用链上还有需要用到第一次调用时的变量或其他状态的一些引用操作,  就从第一次调用的作用域中恢复继续执行所需要引用的根,用这个根执行后续的引用操作,当对应根的引用操作全部执行完了,引用链上没有引用需要用到第一次调用时产生的根时,释放当时调用产生这个根时对应的作用域
+            //a钱包如果这时执行了操作, 比如返回空数组或报错,这时函数执行会是当时调用a钱包时的作用域的mine,inflight === mine就能正确的判断这次调用的钱包请求,是不是目前最新钱包请求发出的
+            inflight = mine;
+            markPending(detail.info.rdns); // 把当前连接的钱包对象的rdns保存到sessionStorage的PENDING_KEY键名中,以作为当前钱包的待连接请求
+            clearHint(); // 调用clearHint()函数以来清空提示的文字和button
+            setState("connecting"); // 修改当前状态为 connecting
+
+            //判断连接等待提示
+            const hintTimer = setTimeout(function () { //利用setTimeout函数注册一个6秒后执行的回调函数, 非异步,等待回调函数中不会影响其他程序执行
+                if (inflight === mine && state === "connecting") { // 把判断当前请求是否严格等于现在发起的请求与现状态是否严格等于"connecting"的结果做与逻辑, 如果全部符合为真 
+                    showHint("如果您没看到钱包窗口,请点试着点击浏览器右上角扩展图标,找到需要连接的钱包扩展。", "stop"); //全部为真执行 showHint()函数,把参数传进去,让提示字段显示"如果您没看到钱包窗口,请点试着点击浏览器右上角扩展图标,找到需要连接的钱包扩展。",显示"stop waiting"button对象
+                }
+            }, 6000);
+
+            let keepMark = false; //声明一个变量, 默认值为false(布尔值) 当作布尔开关 (javascript会根据你赋值的内容动态决定类型,不需要显性的去确定类型)
+
+            try {
+                const accounts = await detail.provider.request({ method: "eth_requestAccounts" }); // 用request方法向dtail钱包对象里provider对应的交互钱包发送"eth_requestAccounts"这个RPC请求,显性的来请求获取当前网页可访问账户地址,如果此钱包未授权则通常会弹出授权窗口询问用户,已授权则会直接返回当前可访问账户地址,用户拒绝和已有相似请求则会错误
+                // 此过程会异步等待,直到通过或者拒绝
+                if (accounts.length > 0) { // 如果用户批准,或者本身就已连接,那么返回的已授权账户地址数组就会大于0 //没有判断必须是现钱包对象发起的请求逻辑,所以之前的旧钱包请求连接了之后返回账户地址一样可以通过
+                    useWallet(detail); //之后把当前钱包对象传给useWallet()  判断并挂上监听 保存这个钱包对象为当前已选用钱包对象 根据选择钱包复选框状态决定需不需要保存这个钱包对象的rnds
+                    clearHint(); //清空提示文字和button
+                    setState("connected"); //设置当前状态为已连接
+                } else if (inflight === mine) { // 如果当前请求的钱包对象没有报错,返回了个空数组且当前返回的钱包是最新请求的钱包
+                    clearHint(); // 清空提示文字和button
+                    setState("disconnected"); // 把当前状态改为未连接 
+                }
+            } catch (error) { // 错误代码块.通常是用户点击拒绝请求或者重复发起请求返回的错误信息
+                console.log("[connect] code:", error.code, "message:", error.message); //把钱包返回的错误打印到控制台 
+
+                if (inflight === mine) { // 检查是否是最新请求 
+
+                    if (error.code === -32002) {  // 如果错误码是-32002(钱包已有请求的通用错误码)  
+
+                        keepMark = true; // 把布尔开关设置为true 作用与下方finally块不要删掉sessionStorage里的pendingConnect标记
+                        watchAccounts(detail.provider); // 把当前报错返回的钱包对象挂上监听器, 用于判断用户在旧网页发起请求之后网页状态被释放,旧的钱包请求还在,之后开启新网页重新发此钱包连接请求的已有请求连接判断
+                        enterPending("您已经发起过一次这个钱包的连接请求了,请点击浏览器右上角的对应钱包图标处理它(批准后页面会自动同步)。如果您取消了,请点击 Send new request 重新发起。"); // 调用enterPending,  把当前状态设置为pending 并弹出已有重复钱包请求的提示和"send new requset" button
+
+                    } else { // 普通错误,一般为用户自己点击了拒绝
+                        clearHint(); // 清空提示
+                        setState("disconnected"); // 设置当前状态为未连接
+                    }
+                }
+            } finally { //在try中, finally是一旦在try后定义,那么无论分支如何, try执行完了之后必会执行的关键字
+                clearTimeout(hintTimer); //clearTimeout()是javascript内置的全局函数,作用是取消setTimeout所设置的定时任务,把他返回赋给hintTimer的定时器标识里的任务取消
+                if (inflight === mine) { // 检查是否为最新请求
+                    inflight = null; // 把最新跟踪请求重置为null
+                    if (!keepMark) { // 通过判断keepMark的值来判断需不需要清楚带连接标记,作用是保存重复发起的钱包最一开始的带连接处于请求状态的标记
+                        clearPendingMark(); // 删除待处理连接标记
+                    }
+                }
+            }
+        }
+
+
+        function enterPending(message) { // 切换状态为pending 显示对应提示
+            setState("pending"); // 当前状态却换pending有待请求连接对象,禁用链接按钮
+            showHint(message, "send"); // 显示提示字段, 显示"Send new request" button
+        }
+
+        function stopWaiting() { // 定时器触发, 点击"stop waiting"执行逻辑
+            if (state !== "connecting") { // 如果当前不处于 "connecting"状态了就直接返回
+                return;
+            }
+            enterPending("有正待在处理的连接请求。请点击浏览器钱包扩展查看,如果钱包请求已处理,点击Send new request重新发起。"); // 如果还是connecting状态,钱包还在等待请求,就传递已有连接请求的提示字段,同时显示"send new request" button
+        }
+
+        function sendNew() { // 点击"send new repuest" button的重置与重连逻辑
+            inflight = null; // 重置inflight, 因为不在需要追踪旧请求了
+            clearPendingMark(); // 删除"pending connect" 键名里面的存储的待连接处理标记rdns, 因为用户已经自己选择了准备发起新连接请求了或者已经处理掉了当前请求在准备发起新请求
+            clearHint(); // 清楚提示字段和button
+            setState("disconnected"); // 设置当前状态为未连接
+            connect(); // 重新调用connect() 让用户自己在选择自己想要的钱包发起连接
+        }
+
+        document.getElementById("closeWarning").onclick = function () { // 关闭未安装钱包警告
+            document.getElementById("walletWarning").style.display = "none"; // 通过获取"closeWarning"这个button对象,把他绑定上点击事件,之后用户点击触发事件执行回调函数将"walletWarning"这个钱包提示弹窗的style里的display属性设置为none,隐藏该弹窗并且不占用布局控件
+        };
+    </script>
+</body>
+
+</html> <!--<html>元素结束标签 代表网页根元素结束-->

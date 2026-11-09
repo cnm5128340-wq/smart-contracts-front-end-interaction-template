@@ -1,0 +1,134 @@
+<!DOCTYPE html> <!--使用HTML5标准,让浏览器按照HTML5的规则解析下面的内容-->
+<html lang="en"> <!--<html> </html>这个是MTML文档的根元素,基本所有网页内容都放在这里 lang="en"是一个属性,代表这个网页常用英语-->
+
+<head> <!--头部信息区域, 放置告诉浏览器怎么理解网页信息-->
+    <meta charset="UTF-8"> <!--告诉浏览器字符串使用UTF-8编码-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><!--(Viewport Meta Tag)优化移动端显示-->
+    <title>lei app</title> <!--网页标题 浏览器标签页的显示-->
+    <style>
+        /*<style>作用是存放CSS样式代码*/
+        body {
+            /* body为选择器,作用是选择HTML中的<body>,把里面的规则应用到body*/
+            text-align:
+                /*文字以水平对齐方式居中*/
+                center;
+            font-family:
+                /*设置字体,优先使用Arial字体 备用sans-serif字体*/
+                Arial,
+                sans-serif;
+        }
+
+        h1 {
+            /*同样作为选择器,选择带有<h1>标签的元素,把里面的规则应用到h1*/
+            font-size:
+                /*设置文字大小为50pixel*/
+                50px;
+        }
+
+        button {
+            /*选择器,选择带有<button>标签的元素,把里面的规则应用到其中*/
+            padding:
+                /*修改内边距 上下12px 左右24px*/
+                12px 24px;
+            font-size:
+                /*按钮文字大小18px*/
+                18px;
+        }
+
+        .modal {
+            /*选择所有class类为modal的元素,执行下面规则,固定,居中,白色背景,圆角,颜色,把这个变成一个弹窗形式*/
+            display: none;
+            /*一开始不显示*/
+            /*display是设置元素以什么样的方式参与布局*/
+            /*display: none 代表不参与布局的同时也不占用页面空间*/
+            /*visibility: visible 则代表只是不参与页面布局,但不会不占用页面空间,两种隐藏方式各有各差异*/
+            position: fixed;
+            /*固定在浏览器视口*/
+            top: 50%;
+            /*让元素的顶部的位置到视口高度的 50% 处*/
+            left: 50%;
+            /*让元素左边缘的位置位于视口宽度的 50% 处*/
+            transform: translate(-50%, -50%);
+            /*把这个弹窗自身向左移动自身宽度的 50%,向上移动自身高度的 50%  ,变得居中*/
+
+            width: 320px;
+            /*设置宽度为320px*/
+            padding: 25px;
+            /*设置内边距为25px,边框和里面内容的距离*/
+
+            background: white;
+            /*设置背景颜色*/
+            border-radius: 12px;
+            /*边角的圆滑曲线*/
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+            /*弹幕增加阴影,0水平平移,9px垂直平移,,30px阴影模糊程度,rgba(0.0.0.25)阴影颜色和透明度*/
+            text-align: center;
+            /*让文字水平居中*/
+        }
+    </style>
+</head> <!--<head>元素结束标签 代表头部信息内容结束-->
+
+<body> <!--网页主体内容区域-->
+    <h1>this is lei Web3</h1><!--h1 代表heading 1 一级标题-->
+    <p>My first Web3 app</p><!--P代表paragraph 一个段落-->
+    <button id="connectButton" onclick="connect()">Connect Wallet</button>
+    <!--button代表生成一个可点击的按钮元素,id 表示这个按钮元素的唯一标识名, onclick表示将按钮连接到commect(), Connect Wallet是按钮显示的字符串-->
+
+    <div id="walletWarning" class="modal"> <!--用div这个HTML容器元素创造一个弹窗, div的id为"walletWarning",div里面的元素class类为"modal"-->
+        <h2>Wallet Required</h2> <!--二级标题,弹窗标题-->
+        <p>Please install MetaMask to continue.</p> <!--弹窗段落-->
+        <button id="closeWarning">Yes, I see</button> <!--弹窗关闭按钮,button id为"closeWarning",按钮显示yess i see字符串 -->
+    </div>
+
+    <script>// javascript 代码区域
+
+        if (typeof window.ethereum !== "undefined") { //检查是否存在钱包插件
+            document.getElementById("connectButton").style.display = "inline-block"; //存在钱包插件时,显示连接按钮
+            window.ethereum.on("accountsChanged", function (accounts) {//账户连接状态监听,确保button状态一致
+                if (accounts.length > 0) { //账户在连接时,"connectButton"button元素显示文字为Already Connected wallet
+                    document.getElementById("connectButton").textContent = "Already Connected wallet";
+                } else { //账户没有连接时,button元素显示connect wallet
+                    document.getElementById("connectButton").textContent = "Connect Wallet";
+                }
+            });
+
+            async function checkConnection() {//刷新时检查连接状态确保按钮显示和连接状态一致
+                const accounts = await window.ethereum.request({ method: "eth_accounts" });//给钱包发送返回当前网页已被授权可访问账户的命令,保存返回值
+                if (accounts.length > 0) {//获取返回的账户数组accounts的元素数量,一个元素就是一个已连接授权账户,如果有已授权账户就把button改变为已already connected wallet
+                    document.getElementById("connectButton").textContent = "Already Connected wallet";
+                } else {//相反没有已经授权钱包账户button则为connect wallet 
+                    document.getElementById("connectButton").textContent = "Connect Wallet";
+                }
+            }
+            checkConnection();//最后去调用检查钱包连接更新的逻辑
+        } else {//不存在钱包插件时,隐藏按钮并且提示用户
+            document.getElementById("connectButton").style.display = "none"; //display:none 代表这个元素不参与显示布局
+            document.getElementById("walletWarning").style.display = "block";//自定义弹窗,执行到这时时弹出
+        }
+
+        async function connect() { //钱包检测通过后连接按钮执行的逻辑
+            console.log("metamask can be operated");
+            const connectresult = await window.ethereum.request({ method: "eth_requestAccounts" });//向网页发送连接钱包请求,等待连接成功之后保存返回结果
+            document.getElementById("connectButton").textContent = "Already Connected wallet";// 连接成功改变按钮显示文字 
+            //textContent表示这个HTML元素里的文本内容
+            //通过访问 id 为connectButton的button元素里的textContent属性 在通过给他赋值Already Connected wallet来改变按钮显示文字
+        }
+
+
+
+
+
+        document.getElementById("closeWarning").onclick = function () {//点击id为closeWarning按钮就会执行function()函数去关闭id为"walletWarning"的弹窗
+            //onclick是DOM元素提供的一个事件处理属性, 浏览器会监听button的onclick,按钮被点击onclick就会被触发
+            //访问"closeWarning" button的onclick属性,把onclick绑定function()函数,button被点击onclick被触发,执行functio()
+            document.getElementById("walletWarning").style.display = "none";//关闭id为"walletWarning"的元素,关闭了弹窗
+        };
+
+
+
+
+    </script>
+
+</body> <!--<body>元素结束标签 代表网页主体内容结束-->
+
+</html> <!--<html>元素结束标签 代表网页根元素结束-->

@@ -1,0 +1,184 @@
+<!-- 这是HTML注释符号 -->
+<!DOCTYPE html> <!--使用HTML5标准,让浏览器按照HTML5的规则解析下面的内容-->
+<html lang="en"> <!--<html> </html>这个是MTML文档的根元素,基本所有网页内容都放在这里 lang="en"是一个属性,代表这个网页常用英语-->
+
+<head> <!--头部信息区域, 放置告诉浏览器怎么理解网页信息-->
+    <meta charset="UTF-8"> <!--告诉浏览器字符串使用UTF-8编码-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><!--(Viewport Meta Tag)优化移动端显示-->
+    <title>lei app</title> <!--网页标题 浏览器标签页的显示-->
+    <style>
+        /*这是CSS注释*/
+        /*<style>作用是存放CSS样式代码*/
+        body {
+            /* body为选择器,作用是选择HTML中的<body>,把里面的规则应用到body*/
+            text-align:
+                /*文字水平对齐方式居中*/
+                center;
+            font-family:
+                /*设置字体,优先使用Arial字体 备用sans-serif字体*/
+                Arial,
+                sans-serif;
+        }
+
+        h1 {
+            /*同样作为选择器,选择带有<h1>标签的元素,把里面的规则应用到h1*/
+            font-size:
+                /*设置文字大小为50pixel*/
+                50px;
+        }
+
+        button {
+            /*选择器,选择带有<button>标签的元素,把里面的规则应用到其中*/
+            padding:
+                /*修改内边距 上下12px 左右24px*/
+                12px 24px;
+            font-size:
+                /*按钮文字大小18px*/
+                18px;
+        }
+
+        .modal {
+            /*选择所有class类为modal的元素,执行下面规则,固定,居中,白色背景,圆角,颜色,把这个变成一个弹窗形式*/
+            display: none;
+            /*一开始不显示*/
+            position: fixed;
+            /*固定在浏览器视口*/
+            top: 50%;
+            /*让元素的顶部的位置到视口高度的 50% 处*/
+            left: 50%;
+            /*让元素左边缘的位置位于视口宽度的 50% 处*/
+            transform: translate(-50%, -50%);
+            /*把这个弹窗自身向左移动自身宽度的 50%,向上移动自身高度的 50%  ,变得居中*/
+
+            width: 320px;
+            /*设置宽度为320px*/
+            padding: 25px;
+            /*设置内边距为25px,边框和里面内容的距离*/
+
+            background: white;
+            /*设置背景颜色*/
+            border-radius: 12px;
+            /*边角的圆滑曲线*/
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+            /*弹幕增加阴影,0水平平移,9px垂直平移,,30px阴影模糊程度,rgba(0.0.0.25)阴影颜色和透明度*/
+            text-align: center;
+            /*让文字水平居中*/
+        }
+    </style>
+</head> <!--<head>元素结束标签 代表头部信息内容结束-->
+
+<body> <!--网页主体内容区域-->
+    <h1>this is lei Web3</h1><!--h1 代表heading 1 一级标题-->
+    <p>My first Web3 app</p><!--P代表paragraph 一个段落-->
+    <button id="connectButton" onclick="connect()">Connect Wallet</button>
+    <!--button代表生成一个可点击的按钮元素,id 表示这个按钮元素的唯一标识名, onclick表示将按钮连接到commect(), Connect Wallet是按钮显示的字符串-->
+
+    <div id="walletWarning" class="modal"> <!--用div这个HTML容器元素创造一个弹窗, div的id为"walletWarning",div里面的元素 class类为"modal"-->
+        <h2>Wallet Required</h2> <!--二级标题,弹窗标题-->
+        <p>Please install MetaMask to continue.</p> <!--弹窗段落-->
+        <button id="closeWarning">Yes, I see</button> <!--弹窗关闭按钮,button id为"closeWarning",按钮显示yess i see字符串 -->
+    </div>
+
+    <script>// javascript 代码区域
+        /*async function connect() { //把原本页面加载时就要执行的代码放到函数里,这时就需要调用才会执行了
+            if (typeof window.ethereum !== "undefined") { //检查当前浏览器环境是否存在window.ethereum这个属性
+                //if判断 为真执行下面的子语句
+                //typeof Javascript自己提供的一元运算符,作用是用于获取一个值的数据类型名称
+                //window.ethereum 浏览器提供的一个全局对象window里的ethereum属性
+                //!== 严格不等于运算符 值不同或类型不同其中任意一项成立为假就出真 值相同且类型相同同时成立全部为真才出假  有假出真 全真出假 类似数电的与非门 全1出0 有0出1
+                //undefined javascript特殊值类型
+                //"undefined" 字符串类型,值为undefined
+                //typeof window.ethereum !== "undefined" 在这段比较中,如果只是普通的window.ethereum !== "undefined"比较,那么如果window.ethereum存在的话,类型值都与"undefined"不相同,为turr,如果window.ethereum不存在,则是undefined !== "undefined" ,一样,类型不同,为turr
+                //但是有typeof 如果没有钱包则返回的一样是undefined,但是typeof获取的undefined类型一样是undefined类型,但是返回的是是字符串类型描述的"undefined"这个类型名称,所以比较就变成了"undefined" !== "undefined" 全真为假 为false
+                //(typeof获取的是类型的名称 获取类型之后通过字符串描述,123获取成为"number","hello"获取成为 "string",而获取undefined 获取为"undefined")
+                //如果钱包存在,typeo获取的大概率是一个object类型的对象,获取到"object" 就变成了"object" !== "undefined" 有假为真, 为true
+
+                console.log("metamask can be operated");// 检测到钱包插件
+
+                await window.ethereum.request({ method: "eth_requestAccounts" });//向浏览器里的钱包插件metamask发送一个请求,询问用户授权当前网页可否访问钱包账户
+                //window.ethereum 是钱包插件暴露给浏览器的一个接口,是一个Ethereum Provider对象
+                //request 是ethereum对象中的一个函数方法,调用它它可以接收参数 用于向钱包发送请求
+                //访问是从级传递的,先通过访问window这个对象里的ethereum属性,来拿到ethereum这个对象,在通过访问ethereum这个对象来访问request这个函数方法
+                //method 是传参给request时request接收的参数对象里的一个属性 作用当属性名,附带属性值,在给request这个方法函数传参时当参数对象
+                //window.ethereum.request({ method: "eth_requestAccounts" }); 先通过访问window里的ethereum这个属性,在拿到ethereum这个属性之后,在通过访问ethereum这个对象提供的request方法,再把 method这个属性名和附带的属性值"eth_requestAccounts"这个RPC请求作为一个参数对象传参给request,再由request发送给钱包,钱包解析之后去执行请求账户的操作
+                //eth_requestAccounts 是Ethereum Provider标准中提供的一个的RPC方法,作用是询问用户当前网页可否访问钱包账户
+
+
+            }
+            else { //如果存在window.ethereum.为真执行,如果不存在则为假不执行
+                console.log("not metamask");
+            }
+        }
+*/
+        if (typeof window.ethereum !== "undefined") { //检查是否存在钱包插件
+            document.getElementById("connectButton").style.display = "inline-block"; //存在钱包插件时,显示连接按钮
+            //访问document这个浏览器提供的dom对象里的getElementById这个方法,传参给这个方法"connectButton"参数,让getElementById返回id为"connectButton"的HTML元素对象
+            //再由style访问这个button元素对象里的的style属性,之后在继续访问style这个对象里的display属性,之后把display属性赋值为block(block 是 CSS 中的一种 display 值，表示把这个元素作为块级元素显示)
+            //document.getElementById("connectButton")获取button元素 获取的返回值直接再由.style.display解析去执行
+            //inline- 是为了让弹出的display按钮button是一个行内级的块级盒子,而不是独占一整行的快级元素,属于行内级,依旧可以被父元素text-align排列
+            window.ethereum.on("accountsChanged", function (accounts) {//账户连接状态监听,确保button状态一致
+                //访问ethereum对象的on方法,让on注册对accountsChanged的监听,并使用function()来当回调函数(这里function即是回调函数用于参数的数据接收,又是监听函数用于被触发后调用)
+                //accountsChanged 代表当前可访问账户的变化
+                //Provider 是一个提供Ethereum访问能力的javaScript对象,交互于window.ethereum和javaScript之间,也是网页和钱包之间的接口,Provider通过request()来接受处理RPC请求,同时通过事件机制向网页通知账户,链的变化
+                //当前可访问账户发生变化时,Provider会触发accountsChanged,然后调用监听时注册的function(accounts)回调函数
+                //Provider账户地址数组 一个数组,里面有当前网页可访问的账户地址 (谁不知道呢,放在这里配合着更好理解一些😊)
+                // EIP-1193 规定: accountsChanged事件被触发时,把变换之后可访问的Provider账户地址数组作为事件参数传递给回调函数,类型为accounts: string[]
+                //用function里的函数参数accounts用来接受Provider在触发accountsChanged时传递的Provider账户地址数组
+                //这样的话就可以获取到当前可访问的账户地址数组,来确定当前网页还有没有已连接的可访问账户来确定button需要显示的状态,也能根据当前网页能访问账户的变化来实时更改button的显示状态
+
+                if (accounts.length > 0) { //账户有连接时,"connectButton"button元素显示文字为Already Connected wallet
+                    document.getElementById("connectButton").textContent = "Already Connected wallet";
+                } else { //账户没有连接时,button元素显示connect wallet
+                    document.getElementById("connectButton").textContent = "Connect Wallet";
+                }
+            });
+
+            async function checkConnection() {//刷新时检查连接状态确保按钮显示和连接状态一致
+                const accounts = await window.ethereum.request({ method: "eth_accounts" });//给钱包发送返回当前网页已被授权可访问账户的命令,保存返回值
+                if (accounts.length > 0) {//获取返回的账户数组accounts的元素数量,一个元素就是一个已连接授权账户,如果有已授权账户就把button改变为已already connected wallet
+                    document.getElementById("connectButton").textContent = "Already Connected wallet";
+                } else {//相反没有已经授权钱包账户button则为connect wallet 
+                    document.getElementById("connectButton").textContent = "Connect Wallet";
+                }
+            }
+            checkConnection();//最后去调用检查钱包连接更新的逻辑
+
+
+
+
+        } else {//不存在钱包插件时,隐藏按钮并且提示用户
+            document.getElementById("connectButton").style.display = "none";
+            //display:none 代表这个元素不参与显示布局
+
+            //alert(" please install metamask ");
+            //alert是浏览器提供全局函数,本身是window对象上的一个方法(window.alert),作用是弹出弹窗提示功能
+
+            document.getElementById("walletWarning").style.display = "block";//自定义弹窗,执行到这时时弹出
+        }
+
+        async function connect() { //钱包连接检测
+            console.log("metamask can be operated");
+            const connectresult = await window.ethereum.request({ method: "eth_requestAccounts" });//向网页发送连接钱包请求,等待连接成功之后保存返回结果
+            document.getElementById("connectButton").textContent = "Already Connected wallet";// 连接成功改变按钮显示文字 
+            //textContent表示这个HTML元素里的文本内容
+            //通过访问 id 为connectButton的button元素里的textContent属性 在通过给他赋值Already Connected wallet来改变按钮显示文字
+        }
+
+
+
+
+
+        document.getElementById("closeWarning").onclick = function () {//点击id为closeWarning按钮就会执行function()函数去关闭id为"walletWarning"的弹窗
+            //onclick是DOM元素提供的一个事件处理属性, 浏览器会监听button的onclick,按钮被点击,onclick就会被触发
+            //访问"closeWarning" button的onclick属性,把onclick绑定function()函数,button被点击onclick被触发,执行functio()
+            document.getElementById("walletWarning").style.display = "none";//关闭id为"walletWarning"的元素,关闭了弹窗
+        };
+
+
+
+
+    </script>
+
+</body> <!--<body>元素结束标签 代表网页主体内容结束-->
+
+</html> <!--<html>元素结束标签 代表网页根元素结束-->
