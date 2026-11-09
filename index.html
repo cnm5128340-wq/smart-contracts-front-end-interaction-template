@@ -206,7 +206,7 @@
 
         function clearPendingMark() { //删除 session Storage 中 "pending Connect"这个储存键中保存的待处理连接标记
             try {
-                localStorage.removeItem(PENDING_KEY);//调用session Storage对象中的remove Item()这个方法,根据指定的键名,删除浏览器中对应键名储存的带连接处理标记
+                localStorage.removeItem(PENDING_KEY);//调用local Storage对象中的remove Item()这个方法,根据指定的键名,删除浏览器中对应键名储存的带连接处理标记
             }
             catch (e) { }
         }
